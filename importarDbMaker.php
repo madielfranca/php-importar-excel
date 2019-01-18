@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $conexao = NULL;
     try {
         $conexao = new PDO("odbc:{$db}", $config[$db]['User'], $config[$db]['Password']);
+        $conexao->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
     } catch (PDOException $e) {
         echo "<pre>";
         var_dump($e);
@@ -90,12 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $c++;
         if ($c == 1)
             continue;
-        if($linha[1] == '')
+        if ($linha[1] == '')
             continue;
         if (!isset($tabelasInserir[$linha[1]]))
             $tabelasInserir[$linha[1]] = $linha[1];
     }
-    var_dump($tabelasInserir);
 
     //Busca no banco de dados todas as tabelas que serão trabalhadas e monta uma lista com tipo de cada coluna
     $tipoColunas = [];
@@ -138,8 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         //Pula linha do cabeçalho
         if ($d == 1)
             continue;
-        
-        if($linha[1] == '')
+
+        if ($linha[1] == '')
             continue;
 
         $posicao++;
@@ -166,11 +166,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 //Faz tratamento com as colunas de acordo com a necessidade
                 if (in_array($tipoColunas[$tabela][strtoupper($cabPesquisar)], $tipoSemAspa)) {
                     $registro[$cab] = ($registro[$cab]{0} == '-' ? -1 : 1) * preg_replace("/[^\d\.]/", '', $registro[$cab]);
-                    $valor = $registro[$cab] == '' ? 'NULL' : "{$registro[$cab]}";
+                    if ($registro[$cab] == '')
+                        $valor = 'NULL';
+                    else
+                        $valor = $registro[$cab] == '' ? 'NULL' : "{$registro[$cab]}";
                 } else if ($tipoColunas[$tabela][strtoupper($cabPesquisar)] == 'DATE') {
-                    $valor = substr($registro[$cab], 6, 4) . '-' . substr($registro[$cab], 3, 2) . '-' . substr($registro[$cab], 0, 2);
+                    if ($registro[$cab] == '')
+                        $valor = 'NULL';
+                    else
+                        $valor = substr($registro[$cab], 6, 4) . '-' . substr($registro[$cab], 3, 2) . '-' . substr($registro[$cab], 0, 2);
                 } else {
-                    $valor = "'{$registro[$cab]}'";
+                    if ($registro[$cab] == '')
+                        $valor = 'NULL';
+                    else
+                        $valor = "'{$registro[$cab]}'";
                 }
                 //Gera array com os valores finais
                 $infos[] = $valor;
@@ -191,11 +200,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         //Informa query montada ao usuário
         if ($debug)
             echo $query . '<br>';
+        
 
         //Executa query e faz validação se houve algum erro para que retorne ao usuário.
         try {
-            $executar = $conexao->prepare("{$query}");
-            $executar->execute();
+            $conexao->query($query);
         } catch (PDOException $e) {
             echo "<pre>";
             var_dump($e);
@@ -204,7 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conexao = false;
             exit;
         }
-
         //Informa ao usuário que finalizou a linha e inseriu com sucesso.
         if ($debug)
             echo "Finalizada linha <b>{$posicao}</b><br><br>";
